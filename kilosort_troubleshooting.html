@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kilosort 使用指南 & 问题排查</title>
+<style>
+:root {
+  --bg: #0d1117; --card-bg: #161b22; --border: #30363d;
+  --text: #c9d1d9; --text2: #8b949e; --accent: #58a6ff;
+  --accent2: #f78166; --green: #3fb950; --yellow: #d29922;
+  --purple: #bc8cff; --hl: rgba(255,235,59,0.4);
+  --sidebar-w: 260px;
+}
+* { box-sizing:border-box; margin:0; padding:0 }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.7; min-height:100vh }
+
+/* === SIDEBAR === */
+.sidebar { position:fixed; left:0; top:0; width:var(--sidebar-w); height:100vh; background:#0d1117dd; backdrop-filter:blur(12px); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:200; overflow-y:auto }
+.sidebar-header { padding:20px 18px; border-bottom:1px solid var(--border) }
+.sidebar-header h2 { font-size:1.05rem; font-weight:700; line-height:1.3 }
+.sidebar-header h2 span { color:var(--accent) }
+.sidebar-header .sub { font-size:0.75rem; color:var(--text2); margin-top:2px }
+.sidebar-search { padding:12px 14px; border-bottom:1px solid var(--border) }
+.sidebar-search input { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:6px; background:var(--card-bg); color:var(--text); font-size:0.85rem; outline:none }
+.sidebar-search input:focus { border-color:var(--accent) }
+.sidebar-nav { flex:1; overflow-y:auto; padding:8px 0 }
+.sidebar-nav a { display:block; padding:7px 18px; font-size:0.83rem; color:var(--text2); text-decoration:none; transition:all .12s; border-left:3px solid transparent }
+.sidebar-nav a:hover, .sidebar-nav a.active { color:var(--text); background:rgba(88,166,255,.06); border-left-color:var(--accent) }
+.sidebar-nav a .num { color:var(--accent); font-weight:600; margin-right:6px; font-size:0.75rem }
+.sidebar-footer { padding:12px 18px; border-top:1px solid var(--border); font-size:0.7rem; color:var(--text2) }
+
+/* === MAIN === */
+.main { margin-left:var(--sidebar-w); padding:0; min-height:100vh }
+.topbar { position:sticky; top:0; z-index:100; background:var(--bg); border-bottom:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; gap:16px; flex-wrap:wrap }
+.topbar .search-wrap { flex:1; min-width:220px; position:relative }
+.topbar .search-wrap input { width:100%; padding:9px 16px 9px 38px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text); font-size:0.9rem; outline:none }
+.topbar .search-wrap input:focus { border-color:var(--accent) }
+.topbar .search-wrap .icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.95rem }
+.topbar .result-badge { font-size:0.82rem; color:var(--text2); white-space:nowrap; background:var(--card-bg); padding:6px 14px; border-radius:16px; border:1px solid var(--border) }
+.topbar .clear-search { font-size:0.82rem; color:var(--accent); cursor:pointer; background:none; border:1px solid var(--border); border-radius:6px; padding:6px 12px; display:none }
+.topbar .clear-search.visible { display:inline-block }
+.topbar .clear-search:hover { border-color:var(--accent) }
+
+.content { padding:28px 32px 60px; max-width:1100px }
+
+/* === SECTIONS === */
+.section { margin-bottom:40px; scroll-margin-top:80px }
+.section-title { font-size:1.5rem; font-weight:700; padding-bottom:10px; border-bottom:1px solid var(--border); margin-bottom:20px }
+.section-title .num { color:var(--accent) }
+.subsection { margin-bottom:24px; scroll-margin-top:80px }
+.subsection h3 { font-size:1.1rem; font-weight:700; margin-bottom:12px; color:var(--text) }
+.subsection h4 { font-size:0.95rem; font-weight:700; margin:16px 0 8px; color:var(--accent2) }
+
+/* === TABLES === */
+.table-wrap { overflow-x:auto; margin:12px 0 20px; border:1px solid var(--border); border-radius:8px }
+table { width:100%; border-collapse:collapse; font-size:0.85rem }
+thead { background:var(--card-bg) }
+th { text-align:left; padding:10px 14px; border-bottom:2px solid var(--border); font-weight:600; white-space:nowrap; color:var(--text) }
+td { padding:9px 14px; border-bottom:1px solid var(--border); vertical-align:top }
+tr:last-child td { border-bottom:none }
+tbody tr:hover td { background:rgba(88,166,255,.04) }
+td:first-child, th:first-child { font-family:"SF Mono","Fira Code","Consolas",monospace; font-size:0.82rem; color:var(--accent2) }
+td code, th code { font-family:"SF Mono","Fira Code","Consolas",monospace; font-size:0.82rem; background:var(--badge-bg, #21262d); padding:2px 6px; border-radius:4px; color:var(--accent) }
+
+/* === CODE === */
+pre { background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:14px 18px; overflow-x:auto; margin:12px 0 18px }
+pre code { font-family:"SF Mono","Fira Code","Consolas",monospace; font-size:0.84rem; line-height:1.6; background:none; padding:0; color:var(--text) }
+:not(pre)>code { font-family:"SF Mono","Fira Code","Consolas",monospace; font-size:0.84rem; background:#21262d; padding:2px 6px; border-radius:4px; color:var(--accent) }
+
+/* === LISTS === */
+ul, ol { padding-left:24px; margin:8px 0 12px }
+li { margin:4px 0; font-size:0.9rem }
+li code { font-size:0.82rem }
+
+/* === CALLOUTS === */
+.callout { border-left:3px solid var(--accent); background:rgba(88,166,255,.06); padding:12px 16px; border-radius:0 6px 6px 0; margin:14px 0 }
+.callout.warn { border-left-color:var(--yellow); background:rgba(210,153,34,.06) }
+.callout.tip { border-left-color:var(--green); background:rgba(63,185,80,.06) }
+.callout strong { display:block; margin-bottom:4px }
+
+/* === HIGHLIGHT === */
+mark { background:var(--hl); color:var(--text); border-radius:2px; padding:0 2px }
+
+/* === FLOWCHART === */
+.flowchart { background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:18px 20px; margin:12px 0; font-family:"SF Mono","Fira Code","Consolas",monospace; font-size:0.82rem; line-height:1.8; white-space:pre; overflow-x:auto }
+
+/* === HIDDEN === */
+.hidden-section { display:none }
+
+/* === RESPONSIVE === */
+@media (max-width:860px) {
+  .sidebar { display:none }
+  .main { margin-left:0 }
+  .content { padding:16px 14px 40px }
+  .topbar { padding:10px 14px }
+}
+
+/* MOBILE MENU */
+.menu-btn { display:none; background:none; border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:1.2rem; padding:6px 10px; cursor:pointer }
+@media (max-width:860px) { .menu-btn { display:block } }
+.sidebar.open { display:flex; position:fixed; z-index:300; width:100% }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:5px; height:5px }
+::-webkit-scrollbar-track { background:var(--bg) }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px }
+
+footer { text-align:center; padding:32px; color:var(--text2); font-size:0.78rem; border-top:1px solid var(--border); margin-top:20px }
+</style>
+</head>
+<body>
+
+<!-- ============ SIDEBAR ============ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>Kilosort <span>使用指南</span></h2>
+    <div class="sub">问题排查 &amp; 最佳实践</div>
+  </div>
+  <div class="sidebar-search">
+    <input type="text" id="sidebarSearch" placeholder="搜索...">
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav">
+    <a href="#s1"><span class="num">一</span>安装与环境配置</a>
+    <a href="#s2"><span class="num">二</span>GUI 启动与使用</a>
+    <a href="#s3"><span class="num">三</span>数据准备</a>
+    <a href="#s4"><span class="num">四</span>探针配置</a>
+    <a href="#s5"><span class="num">五</span>排序结果解读</a>
+    <a href="#s6"><span class="num">六</span>各版本差异与兼容性</a>
+    <a href="#s7"><span class="num">七</span>常见问题分类及解决方案</a>
+    <a href="#s8"><span class="num">八</span>调参策略总结</a>
+    <a href="#s9"><span class="num">九</span>最佳实践与建议</a>
+    <a href="#s10"><span class="num">十</span>参考资源</a>
+  </nav>
+  <div class="sidebar-footer">基于 1000+ GitHub Issues<br>Kilosort 1/2/2.5/3/4</div>
+</aside>
+
+<!-- ============ MAIN ============ -->
+<div class="main" id="mainContent">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="menu-btn" onclick="toggleSidebar()" title="菜单">&#9776;</button>
+    <div class="search-wrap">
+      <span class="icon">&#128269;</span>
+      <input type="text" id="mainSearch" placeholder="搜索所有内容… 如 "no spikes detected" "OOM" "over-merging" "Phy"…" autofocus>
+    </div>
+    <span class="result-badge" id="resultBadge">显示全部</span>
+    <button class="clear-search" id="clearSearch" onclick="clearSearch()">&#10005; 清除</button>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="contentArea">
+
+<!-- ===== SECTION 1 ===== -->
+<div class="section" id="s1">
+<div class="section-title"><span class="num">一、</span>安装与环境配置</div>
+
+<div class="subsection" id="s1.1">
+<h3>1.1 标准安装方法</h3>
+<p><strong>Kilosort4 (Python 版) — 推荐方式：</strong></p>
+<pre><code># 创建 conda 环境
+conda create --name kilosort python=3.9
+conda activate kilosort
+
+# 安装（含 GUI）
+python -m pip install kilosort[gui]
+
+# 仅 API（无 GUI）
+python -m pip install kilosort</code></pre>
+<p><strong>关键注意事项：</strong></p>
+<ul>
+  <li>推荐 Python 3.9–3.11（Python 3.13 可能存在兼容性问题）</li>
+  <li>使用 Intel/AMD GPU 必须有 NVIDIA CUDA 支持的 PyTorch</li>
+  <li>Apple Silicon (M1/M2/M3/M4) 目前不完全支持，MPS 后端有已知问题</li>
+</ul>
+</div>
+
+<div class="subsection" id="s1.2">
+<h3>1.2 PyTorch GPU 安装</h3>
+<pre><code># 先卸载 CPU 版本的 PyTorch（如有）
+pip uninstall torch torchvision torchaudio
+
+# 安装 CUDA 版本（以 CUDA 12.1 为例）
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121</code></pre>
+</div>
+
+<div class="subsection" id="s1.3">
+<h3>1.3 常见安装问题及解决</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>问题</th><th>原因</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td><code>pip install kilosort[gui]</code> 失败 (Linux)</td><td>PyQt6 在旧 Ubuntu (18.04) 上无法编译</td><td>升级到 Ubuntu 20.04+，或先手动 <code>pip install PyQt5</code></td></tr>
+<tr><td><code>conda create</code> 失败</td><td>conda 不再推荐安装 PyTorch</td><td>使用 <code>pip</code> 安装 PyTorch，而非 <code>conda install</code></td></tr>
+<tr><td><code>no Qt platform plugin</code></td><td>缺少 Qt 系统库</td><td><code>sudo apt install libxcb-cursor0</code> (Linux)；或安装 <code>PyQt5</code></td></tr>
+<tr><td>PyTorch 不识别 CUDA</td><td>CUDA 版本不匹配</td><td>确保 PyTorch CUDA 版本与驱动兼容；检查 <code>torch.cuda.is_available()</code></td></tr>
+<tr><td><code>numpy.dtype size changed</code></td><td>NumPy 版本不兼容</td><td>在全新 conda 环境中安装，避免与系统包冲突</td></tr>
+<tr><td>Apple Silicon 不支持</td><td>PyTorch MPS + FAISS 不兼容</td><td>目前无完整解决方案，建议使用 Intel/AMD + NVIDIA GPU</td></tr>
+<tr><td><code>threadpoolctl</code> 警告</td><td>scikit-learn 依赖版本</td><td>无害警告，可以忽略</td></tr>
+<tr><td>首次启动 404 错误</td><td>下载 <code>wTEMP.npz</code> 失败</td><td>确保网络连接正常；文件托管在 <code>kilosort.org</code></td></tr>
+</tbody></table></div>
+</div>
+</div>
+
+<!-- ===== SECTION 2 ===== -->
+<div class="section" id="s2">
+<div class="section-title"><span class="num">二、</span>GUI 启动与使用</div>
+
+<div class="subsection" id="s2.1">
+<h3>2.1 启动 GUI</h3>
+<pre><code>conda activate kilosort
+python -m kilosort</code></pre>
+</div>
+
+<div class="subsection" id="s2.2">
+<h3>2.2 GUI 启动失败常见问题</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>问题</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td><code>python -m kilosort</code> 无反应</td><td>检查 conda 环境是否激活；检查 PyQt 是否正确安装</td></tr>
+<tr><td><code>UnboundLocalError: path referenced before assignment</code></td><td>重新安装/更新到最新版本；或启动前手动设置 <code>data_path</code></td></tr>
+<tr><td><code>qt.qpa.screen</code> 错误</td><td>忽略（仅远程/无头服务器影响），或设 <code>QT_QPA_PLATFORM=offscreen</code></td></tr>
+<tr><td>大数据文件加载后 GUI 卡死</td><td>分批加载，耐心等待</td></tr>
+<tr><td>GUI 启动后无法再次启动</td><td>重启终端/conda 环境</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="subsection" id="s2.3">
+<h3>2.3 GUI 使用流程</h3>
+<ol>
+  <li><strong>选择二进制文件</strong> — 支持 <code>.bin</code>, <code>.dat</code>, <code>.bat</code>, <code>.raw</code></li>
+  <li><strong>选择探针布局</strong> — 预设或自定义（<code>.mat</code>, <code>.prb</code>, <code>.json</code>）</li>
+  <li><strong>检查/调整参数</strong> — 主参数面板 + 额外设置窗口</li>
+  <li><strong>加载数据</strong> — 点击 LOAD 按钮加载并验证数据</li>
+  <li><strong>预览</strong> — 查看原始数据、白化数据、探针布局</li>
+  <li><strong>运行排序</strong> — 点击 Run 开始全流程排序</li>
+  <li><strong>查看结果</strong> — 漂移图、诊断图、spike 位置图</li>
+  <li><strong>在 Phy 中策展</strong> — 运行 <code>phy template-gui params.py</code></li>
+</ol>
+</div>
+</div>
+
+<!-- ===== SECTION 3 ===== -->
+<div class="section" id="s3">
+<div class="section-title"><span class="num">三、</span>数据准备</div>
+
+<div class="subsection" id="s3.1">
+<h3>3.1 支持的格式</h3>
+<ul>
+  <li><strong>二进制文件</strong>: <code>.bin</code>, <code>.dat</code>, <code>.bat</code>, <code>.raw</code></li>
+  <li><strong>数据类型</strong>: <code>int16</code>（默认），<code>uint16</code>, <code>int32</code>, <code>float32</code> 等</li>
+  <li><strong>数据要求</strong>: 形状为 <code>(n_channels, n_samples)</code> 的连续二进制文件（C 序）</li>
+</ul>
+</div>
+
+<div class="subsection" id="s3.2">
+<h3>3.2 数据转换</h3>
+<p>KS4 GUI 内置转换器支持：Intan <code>.rhd/.rhs</code>、OpenEphys、SpikeGLX、Neuralynx <code>.ncs</code></p>
+<pre><code># 通过 API 使用 SpikeInterface 转换
+from spikeinterface.extractors import read_openephys
+from spikeinterface.preprocessing import bandpass_filter, common_reference</code></pre>
+</div>
+
+<div class="subsection" id="s3.3">
+<h3>3.3 数据准备常见问题</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>问题</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td><code>Bytes in binary file did not divide evenly</code></td><td><code>n_chan_bin</code> 设置不正确，确认总通道数</td></tr>
+<tr><td>float32 数据 spike 检测失败</td><td>设置 <code>shift</code> 和 <code>scale</code> 使数据范围在 [-100, +100]</td></tr>
+<tr><td>多文件记录（同一 session 分段）</td><td>将文件名以列表形式传入 <code>filename</code> 参数</td></tr>
+<tr><td><code>.rhd</code> 转换失败</td><td>确保文件完整且使用最新版 SpikeInterface；或先导出为 <code>.dat</code></td></tr>
+<tr><td>HDF5 <code>.h5</code> 文件</td><td>先通过 SpikeInterface 转换为 <code>.bin</code></td></tr>
+<tr><td>需要排除同步通道</td><td>使用 <code>bad_channels</code> 排除 SYNC 通道</td></tr>
+<tr><td>数据过大（200+ GB）</td><td>设置 <code>tmin/tmax</code> 分析部分数据；或使用 <code>batch_downsampling</code></td></tr>
+</tbody></table></div>
+</div>
+</div>
+
+<!-- ===== SECTION 4 ===== -->
+<div class="section" id="s4">
+<div class="section-title"><span class="num">四、</span>探针配置</div>
+
+<div class="subsection" id="s4.1">
+<h3>4.1 内置探针</h3>
+<p>Neuropixels 1.0（多种模式）、Neuropixels 2.0（单/多shank）、Neuropixels 1.0 NHP</p>
+</div>
+
+<div class="subsection" id="s4.2">
+<h3>4.2 自定义探针</h3>
+<p>三种格式：<code>.json</code> / <code>.mat</code> / <code>.prb</code></p>
+<p><strong>JSON 格式（推荐）：</strong></p>
+<pre><code>{
+    "chanMap": [0, 1, 2, ..., 383],
+    "xc": [0.0, 0.0, ..., 0.0],
+    "yc": [0.0, 20.0, ..., 7660.0],
+    "kcoords": [1.0, 1.0, ..., 1.0],
+    "n_chan": 384
+}</code></pre>
+<ul>
+  <li><code>chanMap</code>: 通道在二进制文件中的行索引（0-indexed）</li>
+  <li><code>xc</code>, <code>yc</code>: 通道的 x, y 坐标（微米）</li>
+  <li><code>kcoords</code>: shank 编号（同 shank 用相同值）</li>
+  <li><code>n_chan</code>: 通道总数</li>
+</ul>
+</div>
+
+<div class="subsection" id="s4.3">
+<h3>4.3 探针配置常见问题</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>问题</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td><code>chanMap</code> 超出二进制通道范围</td><td>确保 0-indexed，最大值 &lt; <code>n_chan_bin</code></td></tr>
+<tr><td>新建探针 GUI 功能不可用</td><td>用 JSON 文件手动创建</td></tr>
+<tr><td>SpikeInterface 生成的探针无法加载</td><td>KS4 格式略有不同，需转换为简单字典</td></tr>
+<tr><td>多 shank 探针配置</td><td>不同 <code>kcoords</code>；可结合 <code>shank_idx</code> 分别排序</td></tr>
+<tr><td>通道间距过大（如 300μm）</td><td>KS4 针对高密度优化；低密度需调整参数</td></tr>
+<tr><td>2D 阵列探针（MEA/Utah）</td><td>必须手动设置 <code>x_centers</code>，考虑增大 <code>dminx</code></td></tr>
+</tbody></table></div>
+</div>
+</div>
+
+<!-- ===== SECTION 5 ===== -->
+<div class="section" id="s5">
+<div class="section-title"><span class="num">五、</span>排序结果解读</div>
+
+<div class="subsection" id="s5.1">
+<h3>5.1 输出文件</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>文件</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>spike_times.npy</code></td><td>spike 时间（采样点）</td></tr>
+<tr><td><code>spike_clusters.npy</code></td><td>每个 spike 的 cluster ID</td></tr>
+<tr><td><code>spike_templates.npy</code></td><td>每个 spike 的 template ID</td></tr>
+<tr><td><code>amplitudes.npy</code></td><td>spike 振幅</td></tr>
+<tr><td><code>templates.npy</code></td><td>每个 cluster 的平均模板波形</td></tr>
+<tr><td><code>pc_features.npy</code></td><td>PC 特征</td></tr>
+<tr><td><code>pc_feature_ind.npy</code></td><td>PC 特征对应的通道索引</td></tr>
+<tr><td><code>similar_templates.npy</code></td><td>cluster 间相似度矩阵</td></tr>
+<tr><td><code>params.py</code></td><td>Phy 参数文件</td></tr>
+<tr><td><code>kilosort4.log</code></td><td>详细运行日志</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="subsection" id="s5.2">
+<h3>5.2 Cluster 标签</h3>
+<ul>
+  <li><strong>good</strong>: 通过不应期测试，可能是单个神经元</li>
+  <li><strong>mua</strong> (multi-unit activity): 未通过不应期测试</li>
+  <li><strong>noise</strong>: 噪声 cluster</li>
+</ul>
+</div>
+
+<div class="subsection" id="s5.3">
+<h3>5.3 常用 Phy 操作</h3>
+<pre><code># 启动 Phy
+phy template-gui params.py
+
+# 快捷键:  f=feature view  w=波形view  c=correlogram
+#           g=标记good   m=标记mua
+#           alt+click=分裂  space=合并</code></pre>
+</div>
+</div>
+
+<!-- ===== SECTION 6 ===== -->
+<div class="section" id="s6">
+<div class="section-title"><span class="num">六、</span>各版本差异与兼容性</div>
+<div class="table-wrap"><table>
+<thead><tr><th>特性</th><th>KS2/2.5 (MATLAB)</th><th>KS3 (MATLAB)</th><th>KS4 (Python)</th></tr></thead>
+<tbody>
+<tr><td>语言</td><td>MATLAB + CUDA</td><td>MATLAB + CUDA</td><td>Python + PyTorch</td></tr>
+<tr><td>GPU 要求</td><td>NVIDIA CUDA</td><td>NVIDIA CUDA</td><td>NVIDIA CUDA（CPU 也可）</td></tr>
+<tr><td>漂移校正</td><td>KS2.5 有，KS2 无</td><td>有</td><td>有（改进版）</td></tr>
+<tr><td>输出格式</td><td>Phy</td><td>Phy</td><td>Phy</td></tr>
+<tr><td>GUI</td><td>MATLAB GUI</td><td>MATLAB GUI</td><td>Qt5/Qt6 GUI</td></tr>
+<tr><td>安装难度</td><td>高（需编译CUDA）</td><td>高</td><td>低</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- ===== SECTION 7 ===== -->
+<div class="section" id="s7">
+<div class="section-title"><span class="num">七、</span>常见问题分类及解决方案</div>
+
+<!-- 7.1 -->
+<div class="subsection" id="s7.1">
+<h3>7.1 Spike 检测问题</h3>
+
+<h4>7.1.1 未检测到 spike / "No spikes detected"</h4>
+<div class="callout warn"><strong>最常见的错误之一，原因多样</strong></div>
+<div class="table-wrap"><table>
+<thead><tr><th>可能原因</th><th>解决方案</th></tr></thead>
+<tbody>
+<tr><td><code>Th_universal</code> / <code>Th_learned</code> 太高</td><td>降低阈值至 <code>7-8</code>；低 SNR 数据降至 <code>6</code></td></tr>
+<tr><td>通道间距过大（稀疏探针）</td><td>减小 <code>dmin</code> 和 <code>dminx</code> 为实际通道间距的 0.5-1 倍</td></tr>
+<tr><td>数据比例问题（float32）</td><td>设置 <code>shift</code> 和 <code>scale</code> 使数据落入 [-100, +100]</td></tr>
+<tr><td>白化后数据全为 0 / 空白</td><td>检查探针 <code>chanMap</code> 是否正确；检查 <code>n_chan_bin</code></td></tr>
+<tr><td><code>TruncatedSVD</code> 错误 (0 samples)</td><td>降低 <code>Th_single_ch</code> 到 <code>4-5</code></td></tr>
+<tr><td>通道数太少（4-16 通道）</td><td>设 <code>nearest_chans &lt; 通道数</code>，降低 <code>dminx</code></td></tr>
+<tr><td>高通滤波过于激进</td><td>降低 <code>highpass_cutoff</code> 至 <code>150-200</code> Hz</td></tr>
+<tr><td>信号极性反转</td><td>设置 <code>invert_sign=True</code></td></tr>
+</tbody></table></div>
+
+<h4>7.1.2 检测到太少 spike / 漏检</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>可能原因</th><th>解决方案</th></tr></thead>
+<tbody>
+<tr><td>阈值过高</td><td>降低 <code>Th_universal</code> (7-8) 和 <code>Th_learned</code> (6-7)</td></tr>
+<tr><td>窄波形（fast-spiking）未被检测</td><td>减小 <code>min_template_size</code> (如 5)</td></tr>
+<tr><td>模板覆盖不足</td><td>减小 <code>dmin/dminx</code>；增加 <code>template_sizes</code> (如 7)</td></tr>
+<tr><td>2D MEA / Utah 阵列</td><td>增大 <code>dminx</code> 至等于通道间距；确保 <code>x_centers</code> 正确</td></tr>
+<tr><td>长时间记录中丢失 cluster</td><td>增加 <code>nblocks</code> (如 5-10) 助力漂移跟踪</td></tr>
+</tbody></table></div>
+
+<h4>7.1.3 检测到太多噪声 / 伪迹</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>可能原因</th><th>解决方案</th></tr></thead>
+<tbody>
+<tr><td>阈值太低</td><td>提高 <code>Th_universal</code> 至 <code>10-12</code>；<code>Th_learned</code> 至 <code>9-10</code></td></tr>
+<tr><td>光遗传学/电刺激伪迹</td><td>设置 <code>artifact_threshold</code> (如 500-1000)</td></tr>
+<tr><td>电容式舔舐传感器干扰</td><td>屏蔽/移除干扰通道</td></tr>
+<tr><td>ripple 振荡时的异常检测</td><td>提高 <code>highpass_cutoff</code> 至 <code>400-500</code> Hz</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 7.2 -->
+<div class="subsection" id="s7.2">
+<h3>7.2 聚类问题</h3>
+
+<h4>7.2.1 过度合并 (Over-merging)</h4>
+<p>不同神经元的 spike 被合并到同一 cluster</p>
+<div class="table-wrap"><table><thead><tr><th>解决方案</th></tr></thead><tbody>
+<tr><td>降低 <code>ccg_threshold</code> (如 <code>0.15-0.2</code>)</td></tr>
+<tr><td>降低 <code>acg_threshold</code> (如 <code>0.1</code>)</td></tr>
+<tr><td>在 Phy 中手动分裂合并的 cluster</td></tr>
+<tr><td>确保 <code>cluster_neighbors</code> 足够大（≥10）</td></tr>
+</tbody></table></div>
+
+<h4>7.2.2 过度分裂 (Over-splitting)</h4>
+<p>同一神经元的 spike 被分成多个 cluster</p>
+<div class="table-wrap"><table><thead><tr><th>解决方案</th></tr></thead><tbody>
+<tr><td>提高 <code>ccg_threshold</code> (如 <code>0.3-0.4</code>)</td></tr>
+<tr><td>提高 <code>acg_threshold</code> (如 <code>0.25-0.3</code>)</td></tr>
+<tr><td>在 Phy 中手动合并相似的 cluster</td></tr>
+<tr><td>如果 KS4 比 KS2 严重，尝试降低 <code>Th_learned</code></td></tr>
+</tbody></table></div>
+
+<h4>7.2.3 KS4 比 KS2.5 产出更少的 "good" unit</h4>
+<div class="callout warn"><strong>多次被报告的常见问题</strong></div>
+<div class="table-wrap"><table><thead><tr><th>解决方案</th></tr></thead><tbody>
+<tr><td>KS4 标签标准更保守，"good" 质量更高但数量更少</td></tr>
+<tr><td>降低 <code>acg_threshold</code> 和 <code>ccg_threshold</code></td></tr>
+<tr><td>确认探针配置相同（KS4 与 KS2 探针格式略有不同）</td></tr>
+<tr><td>在 Phy 中重新标记：KS4 的 "mua" 可能包含实际可用的 unit</td></tr>
+</tbody></table></div>
+
+<h4>7.2.4 跨通道分裂/重复检测</h4>
+<div class="table-wrap"><table><thead><tr><th>解决方案</th></tr></thead><tbody>
+<tr><td>增大 <code>max_channel_distance</code> 有助于合并</td></tr>
+<tr><td>在 Phy 中通过 CCG 检查并手动合并</td></tr>
+<tr><td>这是一种保守策略的副作用，通常无害</td></tr>
+</tbody></table></div>
+
+<h4>7.2.5 所有 cluster 被标记为噪声</h4>
+<div class="table-wrap"><table><thead><tr><th>解决方案</th></tr></thead><tbody>
+<tr><td>检查数据质量：是否有大量噪声/伪迹</td></tr>
+<tr><td>检查白化是否正常（查看 GUI 白化数据视图）</td></tr>
+<tr><td>提高 <code>Th_universal</code> 减少噪声进入聚类</td></tr>
+<tr><td>降低 <code>acg_threshold</code> 使更多 cluster 通过测试</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 7.3 -->
+<div class="subsection" id="s7.3">
+<h3>7.3 漂移校正问题</h3>
+
+<h4>7.3.1 漂移校正方向错误 / 反而变差</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>现象</th><th>解决方案</th></tr></thead>
+<tbody>
+<tr><td>漂移校正沿错误方向移动</td><td>检查探针 yc 坐标方向；确保 shank 配置正确</td></tr>
+<tr><td>漂移估计过大</td><td>增大 <code>drift_smoothing</code> (如 <code>[0.5, 1.0, 1.0]</code>)</td></tr>
+<tr><td><code>nblocks=1</code> 不准确</td><td>增加至 <code>3-5</code></td></tr>
+<tr><td>慢速漂移未被跟踪</td><td><code>nblocks=0</code> 时模板仍有缓慢更新，但不如开 <code>nblocks&gt;1</code></td></tr>
+</tbody></table></div>
+
+<h4>7.3.2 禁用漂移校正</h4>
+<p>设置 <code>nblocks=0</code> 完全跳过。适用于：短记录（&lt;5分钟）、急性记录、漂移校正产生错误时。</p>
+</div>
+
+<!-- 7.4 -->
+<div class="subsection" id="s7.4">
+<h3>7.4 内存与性能问题</h3>
+
+<h4>7.4.1 GPU 内存不足 (CUDA OOM)</h4>
+<div class="table-wrap"><table><thead><tr><th>解决方案</th></tr></thead><tbody>
+<tr><td>减小 <code>batch_size</code>（如 <code>30000</code> 或 <code>20000</code>）</td></tr>
+<tr><td>减小 <code>cluster_neighbors</code>（如 <code>5</code>）</td></tr>
+<tr><td>减小 <code>max_cluster_subset</code>（如 <code>10000</code>）</td></tr>
+<tr><td>设置 <code>clear_cache=True</code>（不推荐）</td></tr>
+<tr><td>使用 <code>batch_downsampling &gt; 1</code></td></tr>
+<tr><td>通过 <code>shank_idx</code> 按 shank 分别排序</td></tr>
+<tr><td>升级 GPU 显存（推荐 ≥8GB，大通道数 ≥24GB）</td></tr>
+</tbody></table></div>
+
+<h4>7.4.2 系统内存 (RAM) 使用过高</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>现象</th><th>解决方案</th></tr></thead>
+<tbody>
+<tr><td>RAM 随时间逐渐增长至 128GB+</td><td>可能存在内存泄漏；更新版本；重启 Python</td></tr>
+<tr><td>大文件 RAM 持续高位</td><td>通过 <code>tmin/tmax</code> 分段处理</td></tr>
+<tr><td>32GB RAM 不足</td><td>1000+ 通道×数小时，建议 ≥64GB RAM</td></tr>
+</tbody></table></div>
+
+<h4>7.4.3 排序速度太慢</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>可能原因</th><th>解决方案</th></tr></thead>
+<tbody>
+<tr><td>未使用 GPU</td><td><code>torch.cuda.is_available()</code> 应为 <code>True</code></td></tr>
+<tr><td>CPU 版本 PyTorch</td><td>重装 CUDA 版 PyTorch</td></tr>
+<tr><td>GPU 显存太小 (&lt;8GB)</td><td>减小 <code>batch_size</code>、<code>cluster_downsampling</code></td></tr>
+<tr><td><code>max_cluster_subset</code> 太大</td><td>设为 <code>25000</code> 或更低</td></tr>
+<tr><td>GUI 比 API 慢</td><td>大批量推荐用 API</td></tr>
+<tr><td>聚类阶段特别慢</td><td>减少 <code>cluster_neighbors</code></td></tr>
+<tr><td>同时运行多个 KS 实例</td><td>串行运行</td></tr>
+</tbody></table></div>
+
+<h4>7.4.4 硬件推荐</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>通道数</th><th>GPU 显存</th><th>系统 RAM</th><th>存储</th></tr></thead>
+<tbody>
+<tr><td>&lt; 64 通道</td><td>≥ 4 GB</td><td>16 GB</td><td>快速 NVMe SSD</td></tr>
+<tr><td>64–384 通道</td><td>≥ 8 GB</td><td>32 GB</td><td>快速 NVMe SSD</td></tr>
+<tr><td>384–1024 通道</td><td>≥ 16 GB</td><td>64 GB</td><td>NVMe SSD + 大容量 HDD</td></tr>
+<tr><td>&gt; 1000 通道</td><td>≥ 24 GB</td><td>128 GB</td><td>NVMe SSD + 大容量 HDD</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 7.5 -->
+<div class="subsection" id="s7.5">
+<h3>7.5 运行时错误及解决方案</h3>
+
+<h4>7.5.1 常见错误速查表</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>错误信息</th><th>原因</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td><code>ValueError: Found array with 0 sample(s) ... TruncatedSVD</code></td><td>无足够单通道阈值穿越</td><td>降低 <code>Th_single_ch</code>；检查数据</td></tr>
+<tr><td><code>n_samples=5 should be &gt;= n_clusters=6</code></td><td>spike 过少</td><td>降低 <code>Th_single_ch</code></td></tr>
+<tr><td><code>ZeroDivisionError: float division by zero</code></td><td>除零错误</td><td>更新到最新版本</td></tr>
+<tr><td><code>IndexError: shape of mask does not match</code></td><td>张量维度不匹配</td><td>检查数据格式</td></tr>
+<tr><td><code>mat1 and mat2 shapes cannot be multiplied</code></td><td><code>nt</code> 与 wPCA 维度不匹配</td><td>确保 <code>nt</code> 为奇数</td></tr>
+<tr><td><code>The size of tensor a must match the size of tensor b</code></td><td>通道/模板维度不匹配</td><td>检查探针配置</td></tr>
+<tr><td><code>cannot reshape tensor</code></td><td>reshape 失败</td><td>检查 <code>n_chan_bin</code></td></tr>
+<tr><td><code>CUDNN_STATUS_NOT_SUPPORTED</code></td><td>cuDNN 不支持操作</td><td>通常可忽略</td></tr>
+<tr><td><code>DLL load failed ... _multiarray_umath</code></td><td>NumPy/PyTorch DLL 冲突</td><td>全新 conda 环境重装</td></tr>
+<tr><td><code>SetProcessDpiAwarenessContext() failed</code></td><td>Qt DPI (Windows)</td><td>无害警告，可忽略</td></tr>
+<tr><td><code>Unrecognized settings</code></td><td>不支持的参数名</td><td>检查拼写；确保参数名在 <code>DEFAULT_SETTINGS</code> 中</td></tr>
+</tbody></table></div>
+
+<h4>7.5.2 路径与文件问题</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>问题</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td>日志缺失</td><td>确保 results 目录有写权限</td></tr>
+<tr><td>结果保存到错误路径</td><td>明确指定 <code>results_dir</code></td></tr>
+<tr><td>文件无法移动/删除</td><td>重启 Python 进程</td></tr>
+<tr><td>跨 OS 加载 <code>ops.npy</code> 失败</td><td>手动修改 <code>params.py</code></td></tr>
+<tr><td><code>wTEMP.npz</code> 下载失败 (403/404)</td><td>手动下载到 <code>~/.kilosort/</code></td></tr>
+<tr><td><code>.prb</code> geometry 排序问题</td><td>确保 geometry 和 chanMap 顺序匹配</td></tr>
+</tbody></table></div>
+
+<h4>7.5.3 Phy 兼容性问题</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>问题</th><th>解决方法</th></tr></thead>
+<tbody>
+<tr><td><code>IndexError</code> 在 Phy 中</td><td>检查 <code>params.py</code> 中 <code>dat_path</code></td></tr>
+<tr><td><code>TemplateFeatureView</code> 不可用</td><td>确认保存了 <code>pc_features.npy</code></td></tr>
+<tr><td>KS4 结果在 Phy 中比 KS2 差</td><td>预处理/特征计算方式不同；不同策展策略</td></tr>
+<tr><td>无法安装 Phy</td><td><code>pip install phy --pre</code></td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 7.6 -->
+<div class="subsection" id="s7.6">
+<h3>7.6 数据质量问题</h3>
+
+<h4>7.6.1 处理后看到的奇怪波形</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>现象</th><th>可能原因</th></tr></thead>
+<tbody>
+<tr><td>波形呈阶梯状或块状</td><td><code>nblocks</code> 与 <code>temp_wh.dat</code> 交互导致</td></tr>
+<tr><td>簇的振幅范围异常大</td><td>KS4 欠合并；Phy 中分裂或调整 <code>ccg_threshold</code></td></tr>
+<tr><td>spike 时间超记录长度</td><td>batch 边界填充正常现象，可安全截断</td></tr>
+<tr><td>错误通道上的波形</td><td><code>chanMap</code> 与数据通道顺序不匹配</td></tr>
+<tr><td>KS4 和 KS2 模板不同</td><td>版本间模板提取方法不同，可能是正常的</td></tr>
+</tbody></table></div>
+
+<h4>7.6.2 生物记录相关问题</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>场景</th><th>建议</th></tr></thead>
+<tbody>
+<tr><td>自由移动动物 + 稀疏通道图</td><td>KS4 可能不如 KS2.5；尝试恢复密集通道图</td></tr>
+<tr><td>小脑浦肯野细胞（复杂 spike）</td><td>增加 <code>nt</code>（如 81-101）</td></tr>
+<tr><td>强光遗传学刺激</td><td>设置 <code>artifact_threshold</code></td></tr>
+<tr><td>Opto-electrode 光伪迹</td><td>使用 <code>artifact_threshold</code> 或手动移除光刺激时段</td></tr>
+<tr><td>麻醉状态慢性记录</td><td>漂移小，<code>nblocks=1-2</code></td></tr>
+<tr><td>清醒行为记录（显著漂移）</td><td>增加 <code>nblocks</code> 到 <code>5</code></td></tr>
+</tbody></table></div>
+</div>
+</div>
+
+<!-- ===== SECTION 8 ===== -->
+<div class="section" id="s8">
+<div class="section-title"><span class="num">八、</span>调参策略总结</div>
+
+<div class="subsection" id="s8.1">
+<h3>8.1 快速调参流程图</h3>
+<div class="flowchart">排序结果不理想
+    │
+    ├─ 没有检测到 spike？
+    │   ├─ 降低 Th_universal 和 Th_learned
+    │   ├─ 检查数据比例（设置 shift/scale）
+    │   ├─ 检查探针 chanMap 和 n_chan_bin
+    │   └─ 减小 dmin/dminx
+    │
+    ├─ 检测到太多噪声？
+    │   ├─ 提高 Th_universal 和 Th_learned
+    │   ├─ 设置 artifact_threshold
+    │   └─ 排除坏通道（bad_channels）
+    │
+    ├─ 过度分裂？
+    │   ├─ 提高 ccg_threshold
+    │   └─ 在 Phy 中手动合并
+    │
+    ├─ 过度合并？
+    │   ├─ 降低 ccg_threshold
+    │   └─ 在 Phy 中分裂
+    │
+    ├─ 漂移校正有问题？
+    │   ├─ 调整 nblocks
+    │   ├─ 调整 drift_smoothing
+    │   └─ 或直接禁用：nblocks=0
+    │
+    ├─ 内存不足？
+    │   ├─ 减小 batch_size
+    │   ├─ 减小 cluster_neighbors
+    │   ├─ 减小 max_cluster_subset
+    │   └─ 按 shank 分别排序
+    │
+    └─ 运行太慢？
+        ├─ 确认使用 GPU
+        ├─ 增大 cluster_downsampling
+        ├─ 减小 max_cluster_subset
+        └─ 使用更快的硬件</div>
+</div>
+
+<div class="subsection" id="s8.2">
+<h3>8.2 各探针类型推荐参数</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>参数</th><th>Neuropixels 1/2</th><th>高密度线阵 (32-128ch)</th><th>Tetrode (4ch)</th><th>MEA 2D 阵列</th><th>Utah 阵列</th></tr></thead>
+<tbody>
+<tr><td><code>dminx</code></td><td>32</td><td>32-50</td><td>20</td><td>实际间距或更大</td><td>实际间距</td></tr>
+<tr><td><code>dmin</code></td><td>auto</td><td>auto</td><td>10-20</td><td>1 (无深度)</td><td>auto</td></tr>
+<tr><td><code>nearest_chans</code></td><td>10</td><td>10</td><td>4</td><td>8-10</td><td>10-16</td></tr>
+<tr><td><code>max_channel_distance</code></td><td>32</td><td>40-80</td><td>50</td><td>100-200</td><td>100-200</td></tr>
+<tr><td><code>nblocks</code></td><td>1-5</td><td>1-5</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td><code>x_centers</code></td><td>auto (1)</td><td>1</td><td>1</td><td>手动指定</td><td>手动指定</td></tr>
+<tr><td><code>Th_universal</code></td><td>9</td><td>9</td><td>6-7</td><td>8-10</td><td>8-10</td></tr>
+</tbody></table></div>
+</div>
+</div>
+
+<!-- ===== SECTION 9 ===== -->
+<div class="section" id="s9">
+<div class="section-title"><span class="num">九、</span>最佳实践与建议</div>
+
+<div class="subsection" id="s9.1">
+<h3>9.1 排序建议</h3>
+<ol>
+  <li><strong>先用默认参数运行</strong>，再根据结果调整</li>
+  <li><strong>检查白化数据视图</strong>：正常白化后应清晰看到 spike 波形</li>
+  <li><strong>检查漂移散点图</strong>：确认漂移估计是否合理</li>
+  <li><strong>始终在 Phy 中策展</strong>：KS 的自动标签是初筛，手动确认至关重要</li>
+  <li><strong>保存 log 文件</strong>：<code>kilosort4.log</code> 包含所有运行细节</li>
+  <li><strong>每次参数改动后重新排序</strong>，对比效果</li>
+</ol>
+</div>
+
+<div class="subsection" id="s9.2">
+<h3>9.2 版本建议</h3>
+<ul>
+  <li>始终使用最新稳定版：<code>pip install --upgrade kilosort</code></li>
+  <li>如果最新版本有问题可回退：<code>pip install kilosort==4.0.3</code></li>
+  <li><strong>KS4</strong> 适合 Neuropixels 高密度探针、自动化流程</li>
+  <li><strong>KS2.5</strong> 适合非标准探针、需要更灵活参数控制</li>
+</ul>
+</div>
+
+<div class="subsection" id="s9.3">
+<h3>9.3 常用调试技巧</h3>
+<pre><code># 1. 检查 PyTorch 是否正确使用 GPU
+import torch
+print(torch.cuda.is_available())  # 应为 True
+print(torch.cuda.get_device_name(0))
+
+# 2. 检查默认设置
+from kilosort import DEFAULT_SETTINGS
+print(DEFAULT_SETTINGS.keys())
+
+# 3. 查看已修改的参数
+from kilosort.parameters import compare_settings
+modified, extra = compare_settings(your_settings)
+print("Modified:", modified)
+print("Extra keys:", extra)
+
+# 4. 加载已有结果
+from kilosort import run_kilosort, load_sorting
+ops, st, clu, similar_templates, is_ref, est_contam_rate, kept_spikes = \
+    load_sorting('path/to/kilosort4/')</code></pre>
+</div>
+</div>
+
+<!-- ===== SECTION 10 ===== -->
+<div class="section" id="s10">
+<div class="section-title"><span class="num">十、</span>参考资源</div>
+<ul>
+  <li><strong>官方文档</strong>: <a href="https://kilosort.readthedocs.io/" target="_blank">kilosort.readthedocs.io</a></li>
+  <li><strong>GitHub 仓库</strong>: <a href="https://github.com/MouseLand/Kilosort" target="_blank">github.com/MouseLand/Kilosort</a></li>
+  <li><strong>Phy 文档</strong>: <a href="https://phy.readthedocs.io/" target="_blank">phy.readthedocs.io</a></li>
+  <li><strong>SpikeInterface</strong>: <a href="https://spikeinterface.readthedocs.io/" target="_blank">spikeinterface.readthedocs.io</a></li>
+  <li><strong>示例数据</strong>: <a href="https://www.kilosort.org/downloads" target="_blank">kilosort.org/downloads</a></li>
+</ul>
+</div>
+
+  </div><!-- /content -->
+
+  <footer>
+    基于 Kilosort GitHub 仓库 1000+ 已关闭 Issues (<a href="https://github.com/MouseLand/Kilosort/issues?q=is%3Aissue%20state%3Aclosed" style="color:var(--accent)">#401–#1034</a>) 的分析整理 &mdash; 涵盖 KS1/2/2.5/3/4 &mdash; 2026-05
+  </footer>
+
+</div><!-- /main -->
+
+<script>
+// ===== SEARCH =====
+let searchTerm = '';
+
+function highlightText(el, term) {
+  // Walk text nodes and wrap matches in <mark>
+  if (!term || term.length < 2) return;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+  const nodes = [];
+  while (walker.nextNode()) {
+    const p = walker.currentNode.parentNode;
+    if (['SCRIPT','STYLE','MARK','CODE','PRE'].includes(p.tagName)) continue;
+    nodes.push(walker.currentNode);
+  }
+  const re = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi');
+  for (const node of nodes) {
+    const text = node.textContent;
+    if (re.test(text)) {
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const mk = document.createElement('mark');
+        mk.textContent = m[0];
+        frag.appendChild(mk);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    }
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll('mark').forEach(m => {
+    const parent = m.parentNode;
+    parent.replaceChild(document.createTextNode(m.textContent), m);
+    parent.normalize();
+  });
+}
+
+function countVisible() {
+  return document.querySelectorAll('.section:not(.hidden-section)').length;
+}
+
+function doSearch(term) {
+  searchTerm = term;
+  clearHighlights();
+
+  const sections = document.querySelectorAll('.section');
+  const subsections = document.querySelectorAll('.subsection');
+  let visibleSections = 0;
+
+  if (!term || term.length < 2) {
+    // Show all
+    sections.forEach(s => s.classList.remove('hidden-section'));
+    subsections.forEach(s => s.style.display = '');
+    document.querySelectorAll('.content table tr').forEach(r => r.style.display = '');
+    document.getElementById('resultBadge').textContent = '显示全部';
+    document.getElementById('clearSearch').classList.remove('visible');
+    // Re-highlight sidebar
+    document.querySelectorAll('#sidebarNav a').forEach(a => a.classList.remove('active'));
+    return;
+  }
+
+  document.getElementById('clearSearch').classList.add('visible');
+
+  const t = term.toLowerCase();
+  let totalHits = 0;
+
+  // For each section, check if it or any subsection/table row matches
+  sections.forEach(section => {
+    const text = section.textContent.toLowerCase();
+    const hasMatch = text.includes(t);
+
+    if (hasMatch) {
+      section.classList.remove('hidden-section');
+      visibleSections++;
+      // Show all subsections in this section
+      section.querySelectorAll('.subsection').forEach(sub => sub.style.display = '');
+      section.querySelectorAll('table tr').forEach(r => r.style.display = '');
+      totalHits++;
+    } else {
+      section.classList.add('hidden-section');
+    }
+  });
+
+  // Within visible sections, fine-grain hide non-matching rows and subsections
+  sections.forEach(section => {
+    if (section.classList.contains('hidden-section')) return;
+
+    section.querySelectorAll('.subsection').forEach(sub => {
+      const subText = sub.textContent.toLowerCase();
+      if (!subText.includes(t)) {
+        // Check if any child row matches
+        const rows = sub.querySelectorAll('tbody tr');
+        let anyRowMatch = false;
+        rows.forEach(row => {
+          if (row.textContent.toLowerCase().includes(t)) {
+            row.style.display = '';
+            anyRowMatch = true;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+        if (!anyRowMatch && !sub.querySelector('h3, h4')?.textContent?.toLowerCase()?.includes(t)) {
+          // Keep the heading visible if it matches
+          const h = sub.querySelector('h3, h4');
+          if (h && h.textContent.toLowerCase().includes(t)) {
+            sub.style.display = '';
+          }
+        } else if (anyRowMatch) {
+          sub.style.display = '';
+        }
+      } else {
+        sub.style.display = '';
+        sub.querySelectorAll('tbody tr').forEach(r => r.style.display = '');
+      }
+    });
+
+    // Also check top-level tables not in subsections
+    section.querySelectorAll(':scope > .table-wrap table tbody tr, .callout + .table-wrap table tbody tr').forEach(row => {
+      if (!row.textContent.toLowerCase().includes(t)) {
+        row.style.display = 'none';
+      }
+    });
+  });
+
+  // Highlight
+  document.querySelectorAll('.section:not(.hidden-section)').forEach(s => highlightText(s, term));
+
+  document.getElementById('resultBadge').textContent = `匹配 ${visibleSections} 个章节`;
+}
+
+// Debounced search
+let searchTimer;
+document.getElementById('mainSearch').addEventListener('input', function(e) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => doSearch(e.target.value.trim()), 200);
+});
+document.getElementById('sidebarSearch').addEventListener('input', function(e) {
+  clearTimeout(searchTimer);
+  const val = e.target.value.trim();
+  document.getElementById('mainSearch').value = val;
+  searchTimer = setTimeout(() => doSearch(val), 200);
+});
+
+function clearSearch() {
+  document.getElementById('mainSearch').value = '';
+  document.getElementById('sidebarSearch').value = '';
+  doSearch('');
+}
+
+// Sync sidebar and main search
+document.getElementById('mainSearch').addEventListener('input', function(e) {
+  document.getElementById('sidebarSearch').value = e.target.value;
+});
+
+// ===== SIDEBAR ACTIVE STATE =====
+const sidebarLinks = document.querySelectorAll('#sidebarNav a');
+const sectionObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      sidebarLinks.forEach(a => a.classList.remove('active'));
+      const id = entry.target.id;
+      const link = document.querySelector(`#sidebarNav a[href="#${id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -70% 0px' });
+
+document.querySelectorAll('.section').forEach(s => sectionObserver.observe(s));
+
+// Click sidebar link
+sidebarLinks.forEach(link => {
+  link.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      // Show section if hidden
+      target.classList.remove('hidden-section');
+      target.querySelectorAll('.subsection').forEach(s => s.style.display = '');
+      target.querySelectorAll('tbody tr').forEach(r => r.style.display = '');
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+    // Close mobile sidebar
+    document.getElementById('sidebar').classList.remove('open');
+  });
+});
+
+// ===== MOBILE =====
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('mainSearch').focus();
+  }
+  if (e.key === 'Escape') {
+    clearSearch();
+    document.getElementById('mainSearch').blur();
+  }
+});
+</script>
+</body>
+</html>
